@@ -1,32 +1,97 @@
 // GympanionApp/presentation/features/workouts/WorkoutsViewModel.swift
 import Foundation
 
+enum SendState: Equatable {
+    case idle
+    case sending
+    case sent
+    case error(String)
+}
+
 @Observable
 final class WorkoutsViewModel {
+    // Workout data
     var listState: UiState<[Workout]> = .idle
     var detailState: UiState<Workout> = .idle
 
-    private let useCase: ManageWorkoutsUseCase
+    // Watch connection
+    var isWatchConnected: Bool = false
+    var connectedDeviceId: String? = nil
 
-    init(useCase: ManageWorkoutsUseCase) {
+    // Send lifecycle
+    var sendState: SendState = .idle
+
+    private let provider: WorkoutProvider
+    private let useCase: ManageWorkoutsUseCase
+    private let syncUseCase: SyncWorkoutToWatchUseCase
+
+    init(provider: WorkoutProvider,
+         useCase: ManageWorkoutsUseCase,
+         syncUseCase: SyncWorkoutToWatchUseCase) {
+        self.provider = provider
         self.useCase = useCase
+        self.syncUseCase = syncUseCase
     }
 
-    func loadWorkouts() async {
-        listState = .loading
-        for await workouts in useCase.getAllWorkouts() {
-            listState = .success(workouts)
+    // MARK: - Workout Loading (static provider)
+
+    func loadWorkouts() {
+        let workouts = provider.getAllWorkouts()
+        listState = .success(workouts)
+    }
+
+    func loadWorkout(id: String) {
+        if let workout = provider.getWorkout(byId: id) {
+            detailState = .success(workout)
+        } else {
+            detailState = .error("Workout not found")
         }
     }
 
-    func loadWorkout(id: String) async {
-        detailState = .loading
-        for await workout in useCase.getWorkoutById(id) {
-            if let workout {
-                detailState = .success(workout)
-            } else {
-                detailState = .error("Workout not found")
+    // MARK: - Watch Connection
+
+    func observeDevices() async {
+        for await devices in syncUseCase.connectedDevices() {
+            let connected = !devices.isEmpty
+            isWatchConnected = connected
+            connectedDeviceId = devices.first
+        }
+    }
+
+    // MARK: - Send to Watch
+
+    func sendToWatch(workout: Workout) async {
+        guard let deviceId = connectedDeviceId else {
+            sendState = .error("No watch connected")
+            return
+        }
+
+        sendState = .sending
+        let result = await syncUseCase(deviceId: deviceId, workout: workout)
+
+        switch result {
+        case .success:
+            sendState = .sent
+            // Revert to idle after 2 seconds
+            try? await Task.sleep(for: .seconds(2))
+            if sendState == .sent {
+                sendState = .idle
             }
+        case .failure(let error):
+            sendState = .error(error.localizedDescription)
+        }
+    }
+
+    func resetSendState() {
+        sendState = .idle
+    }
+
+    // MARK: - Future: DB-backed operations (kept for swap path)
+
+    func loadWorkoutsFromDB() async {
+        listState = .loading
+        for await workouts in useCase.getAllWorkouts() {
+            listState = .success(workouts)
         }
     }
 

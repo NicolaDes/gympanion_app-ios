@@ -21,6 +21,9 @@ final class AppContainer {
     // MARK: - Garmin
     private let garminDataSource: GarminDataSource
 
+    // MARK: - Providers
+    private let workoutProvider: WorkoutProvider
+
     // MARK: - Repositories
     private let authRepo: any AuthRepository
     private let exerciseRepo: any ExerciseRepository
@@ -36,6 +39,21 @@ final class AppContainer {
     let fetchAnalyticsUseCase: FetchAnalyticsUseCase
     let syncWorkoutToWatchUseCase: SyncWorkoutToWatchUseCase
 
+    // MARK: - ViewModels (shared)
+    /// Shared ViewModel for workout list + detail. Both screens observe the same instance
+    /// so watch connection state and data stay in sync during navigation.
+    var workoutsViewModel: WorkoutsViewModel {
+        if let _workoutsViewModel { return _workoutsViewModel }
+        let vm = WorkoutsViewModel(
+            provider: workoutProvider,
+            useCase: manageWorkoutsUseCase,
+            syncUseCase: syncWorkoutToWatchUseCase
+        )
+        _workoutsViewModel = vm
+        return vm
+    }
+    private var _workoutsViewModel: WorkoutsViewModel?
+
     private init() {
         // Remote
         apiService = ApiService()
@@ -49,6 +67,9 @@ final class AppContainer {
 
         // Garmin
         garminDataSource = GarminDataSource()
+
+        // Providers
+        workoutProvider = StaticWorkoutProvider()
 
         // Repositories
         authRepo = AuthRepositoryImpl(apiService: apiService, keychainHelper: keychainHelper)
