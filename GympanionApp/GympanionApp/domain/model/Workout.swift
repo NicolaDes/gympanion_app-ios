@@ -17,4 +17,5 @@ struct Workout: Identifiable, Equatable {
     let estimatedDurationMinutes: Int
     let createdAt: Date
     let updatedAt: Date
+    let blocks: [WorkoutBlock]?  // v2 block-based structure, nil for v1 workouts
 }

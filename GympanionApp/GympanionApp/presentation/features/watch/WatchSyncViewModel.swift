@@ -65,6 +65,25 @@ struct WatchMessage: Identifiable {
         }
     }
 
+    init(garminMessage: GarminMessage) {
+        switch garminMessage {
+        case .setComplete(let raw):
+            if let payload = SetCompletePayload(dict: raw) {
+                type = .setComplete(payload)
+            } else {
+                type = .unknown(raw)
+            }
+        case .workoutReplaceResponse(let accepted):
+            type = .workoutReplaceResponse(accepted: accepted)
+        case .sessionResultV1, .sessionResultV2:
+            type = .unknown([:])  // sessions handled by receiveSessionStream
+        case .error(let code, _):
+            type = .unknown(["type": "error", "code": code])
+        case .unknown(let raw):
+            type = .unknown(raw)
+        }
+    }
+
     var title: String {
         switch type {
         case .setComplete(let p):
@@ -121,8 +140,8 @@ final class WatchSyncViewModel {
 
     func startListening() async {
         isListening = true
-        for await raw in dataSource.receiveMessageStream() {
-            messages.insert(WatchMessage(raw: raw), at: 0)
+        for await message in dataSource.receiveMessageStream() {
+            messages.insert(WatchMessage(garminMessage: message), at: 0)
         }
         isListening = false
     }
