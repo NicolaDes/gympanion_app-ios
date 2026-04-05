@@ -148,7 +148,9 @@ private extension SessionEntity {
             completedAt: completedAt,
             sets: [:],
             notes: notes,
-            garminDeviceId: garminDeviceId
+            garminDeviceId: garminDeviceId,
+            blockResults: nil,
+            totalDurationSeconds: nil
         )
     }
 }

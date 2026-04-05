@@ -16,7 +16,9 @@ struct Session: Identifiable, Equatable {
     let workoutName: String
     let startedAt: Date
     let completedAt: Date?
-    let sets: [String: [SetRecord]]   // exerciseId → set records
+    let sets: [String: [SetRecord]]   // exerciseId → set records (v1)
     let notes: String?
     let garminDeviceId: String?
+    let blockResults: [BlockResult]?  // v2 block-aware results, nil for v1
+    let totalDurationSeconds: Int?    // v2: wall-clock duration
 }

@@ -38,17 +38,34 @@ final class GarminDataSource {
     // MARK: - Receive
 
     /// Raw dictionary messages from any registered watch app.
-    func receiveMessageStream() -> AsyncStream<[String: Any]> {
+    func receiveRawMessageStream() -> AsyncStream<[String: Any]> {
         manager.messageStream()
     }
 
-    /// Decoded Session objects (only messages that match the session schema).
+    /// All routed messages for callers that need to handle every type.
+    func receiveMessageStream() -> AsyncStream<GarminMessage> {
+        AsyncStream { continuation in
+            Task {
+                for await raw in self.manager.messageStream() {
+                    let message = self.decoder.route(payload: raw)
+                    continuation.yield(message)
+                }
+                continuation.finish()
+            }
+        }
+    }
+
+    /// Decoded Session objects from both v1 and v2 payloads.
     func receiveSessionStream() -> AsyncStream<Session> {
         AsyncStream { continuation in
             Task {
                 for await raw in self.manager.messageStream() {
-                    if let session = try? self.decoder.decode(payload: raw) {
+                    let message = self.decoder.route(payload: raw)
+                    switch message {
+                    case .sessionResultV1(let session), .sessionResultV2(let session):
                         continuation.yield(session)
+                    default:
+                        break  // other message types handled elsewhere
                     }
                 }
                 continuation.finish()

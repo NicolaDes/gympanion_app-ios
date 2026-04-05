@@ -79,7 +79,8 @@ private extension WorkoutEntity {
             exercises: [],
             estimatedDurationMinutes: estimatedDurationMinutes,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            blocks: nil
         )
     }
 }
