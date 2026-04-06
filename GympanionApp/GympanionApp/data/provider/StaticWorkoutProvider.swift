@@ -8,9 +8,7 @@ final class StaticWorkoutProvider: WorkoutProvider {
     init() {
         let now = Date()
         workouts = [
-            Self.pushDay(createdAt: now),
-            Self.pullDay(createdAt: now),
-            Self.fridayWod(createdAt: now),
+            Self.workoutA(createdAt: now),
         ]
     }
 
@@ -22,91 +20,85 @@ final class StaticWorkoutProvider: WorkoutProvider {
 
     // MARK: - Workout Definitions
 
-    private static func pushDay(createdAt: Date) -> Workout {
-        let benchPress = SequentialExerciseDef(
-            id: "ex_bench_press",
-            name: "Bench Press",
-            sets: (0..<4).map { i in
-                BlockSetParams(setIndex: i, reps: 10, weightKg: 60, durationSeconds: nil, distanceMeters: nil, restSeconds: 90)
-            }
-        )
-        let ohp = SequentialExerciseDef(
-            id: "ex_ohp",
-            name: "Overhead Press",
+    private static func workoutA(createdAt: Date) -> Workout {
+        // Block 1: Sequential — Squat 3RM @8 backoff
+        let squat3rm = SequentialExerciseDef(
+            id: "ex_squat_3rm",
+            name: "Back Squat (3RM)",
             sets: (0..<3).map { i in
-                BlockSetParams(setIndex: i, reps: 10, weightKg: 40, durationSeconds: nil, distanceMeters: nil, restSeconds: 90)
-            }
-        )
-        let dips = SequentialExerciseDef(
-            id: "ex_tricep_dips",
-            name: "Tricep Dips",
-            sets: (0..<3).map { i in
-                BlockSetParams(setIndex: i, reps: 12, weightKg: nil, durationSeconds: nil, distanceMeters: nil, restSeconds: 60)
+                BlockSetParams(setIndex: i, reps: 3, weightKg: 110, durationSeconds: nil, distanceMeters: nil, restSeconds: 120)
             }
         )
 
-        let block = WorkoutBlock.sequential(name: nil, exercises: [benchPress, ohp, dips])
+        // Block 2: Sequential — Squat Backoff 2×7 @ 88kg (20% less)
+        let squatBackoff = SequentialExerciseDef(
+            id: "ex_squat_backoff",
+            name: "Back Squat (Backoff)",
+            sets: (0..<2).map { i in
+                BlockSetParams(setIndex: i, reps: 7, weightKg: 88, durationSeconds: nil, distanceMeters: nil, restSeconds: 120)
+            }
+        )
 
-        // Build flat exercises list for v1 compatibility
-        let exercises = [benchPress, ohp, dips].enumerated().map { order, def in
-            WorkoutExercise(
-                id: def.id,
-                exercise: Exercise(
-                    id: def.id, name: def.name, description: nil,
-                    category: .strength, primaryMuscleGroups: [.chest],
-                    secondaryMuscleGroups: [.triceps, .shoulders],
-                    defaultParams: ExerciseParams(sets: def.sets.count, reps: def.sets.first?.reps, durationSeconds: nil, distanceMeters: nil, weightKg: def.sets.first?.weightKg, restSeconds: def.sets.first?.restSeconds),
-                    isCustom: false, createdAt: createdAt, updatedAt: createdAt
-                ),
-                order: order,
-                params: ExerciseParams(sets: def.sets.count, reps: def.sets.first?.reps, durationSeconds: nil, distanceMeters: nil, weightKg: def.sets.first?.weightKg, restSeconds: def.sets.first?.restSeconds),
-                notes: nil
-            )
+        // Block 3: Sequential — Bench Press 3RM @8 backoff
+        let bench3rm = SequentialExerciseDef(
+            id: "ex_bench_3rm",
+            name: "Bench Press (3RM)",
+            sets: (0..<3).map { i in
+                BlockSetParams(setIndex: i, reps: 3, weightKg: 85, durationSeconds: nil, distanceMeters: nil, restSeconds: 120)
+            }
+        )
+
+        // Block 4: Sequential — Bench Press Backoff 2×7 @ 68kg (20% less)
+        let benchBackoff = SequentialExerciseDef(
+            id: "ex_bench_backoff",
+            name: "Bench Press (Backoff)",
+            sets: (0..<2).map { i in
+                BlockSetParams(setIndex: i, reps: 7, weightKg: 68, durationSeconds: nil, distanceMeters: nil, restSeconds: 120)
+            }
+        )
+
+        let strengthBlock = WorkoutBlock.sequential(
+            name: "Strength",
+            exercises: [squat3rm, squatBackoff, bench3rm, benchBackoff]
+        )
+
+        // Block 5: EMOM — Pull-ups 3 reps every minute for 10 minutes
+        let emomRounds = (0..<10).map { i in
+            EmomRound(roundIndex: i, sets: [
+                EmomSetDef(exerciseId: "ex_pullups", exerciseName: "Pull-ups", reps: 3, weightKg: nil, durationSeconds: nil, distanceMeters: nil)
+            ])
         }
+        let emomBlock = WorkoutBlock.emom(name: "Pull-ups EMOM", intervalSeconds: 60, rounds: emomRounds)
 
-        return Workout(
-            id: "workout_push_day",
-            name: "Push Day",
-            description: "Chest, shoulders & triceps",
-            exercises: exercises,
-            estimatedDurationMinutes: 45,
-            createdAt: createdAt,
-            updatedAt: createdAt,
-            blocks: [block]
-        )
-    }
-
-    private static func pullDay(createdAt: Date) -> Workout {
-        let deadlift = SequentialExerciseDef(
-            id: "ex_deadlift",
-            name: "Deadlift",
-            sets: (0..<3).map { i in
-                BlockSetParams(setIndex: i, reps: 5, weightKg: 100, durationSeconds: nil, distanceMeters: nil, restSeconds: 180)
-            }
-        )
-        let row = SequentialExerciseDef(
-            id: "ex_barbell_row",
-            name: "Barbell Row",
-            sets: (0..<4).map { i in
-                BlockSetParams(setIndex: i, reps: 8, weightKg: 60, durationSeconds: nil, distanceMeters: nil, restSeconds: 90)
-            }
-        )
-        let pullups = SequentialExerciseDef(
-            id: "ex_pullups",
-            name: "Pull-ups",
+        // Block 6: Sequential — Accessories
+        let zPress = SequentialExerciseDef(
+            id: "ex_single_z_press",
+            name: "Single Z Press",
             sets: (0..<3).map { i in
                 BlockSetParams(setIndex: i, reps: 10, weightKg: nil, durationSeconds: nil, distanceMeters: nil, restSeconds: 60)
             }
         )
+        let latMachine = SequentialExerciseDef(
+            id: "ex_single_lat_machine",
+            name: "Single Lat Machine",
+            sets: (0..<3).map { i in
+                BlockSetParams(setIndex: i, reps: 10, weightKg: nil, durationSeconds: nil, distanceMeters: nil, restSeconds: 60)
+            }
+        )
+        let accessoryBlock = WorkoutBlock.sequential(name: "Accessories", exercises: [zPress, latMachine])
 
-        let block = WorkoutBlock.sequential(name: nil, exercises: [deadlift, row, pullups])
-
-        let exercises = [
-            (deadlift, [MuscleGroup.back, .hamstrings], [MuscleGroup.glutes, .forearms]),
-            (row,      [.back],                         [.biceps, .forearms]),
-            (pullups,  [.back],                         [.biceps, .forearms]),
-        ].enumerated().map { order, tuple in
-            let (def, primary, secondary) = tuple
+        // Flat exercises for v1 compatibility (ordered to match block sequence)
+        let allDefs: [(SequentialExerciseDef, [MuscleGroup], [MuscleGroup], String?)] = [
+            (squat3rm,     [.quadriceps, .glutes],  [.hamstrings, .core],   nil),
+            (squatBackoff, [.quadriceps, .glutes],  [.hamstrings, .core],   nil),
+            (bench3rm,     [.chest],                [.triceps, .shoulders], nil),
+            (benchBackoff, [.chest],                [.triceps, .shoulders], nil),
+            (zPress,       [.shoulders],            [.core, .triceps],      "8-12 reps"),
+            (latMachine,   [.back],                 [.biceps],              "8-12 reps"),
+        ]
+        var exercises: [WorkoutExercise] = allDefs.enumerated().map { order, tuple in
+            let (def, primary, secondary, notes) = tuple
+            let adjustedOrder = order < 4 ? order : order + 1  // leave slot 4 for pull-ups
             return WorkoutExercise(
                 id: def.id,
                 exercise: Exercise(
@@ -116,76 +108,35 @@ final class StaticWorkoutProvider: WorkoutProvider {
                     defaultParams: ExerciseParams(sets: def.sets.count, reps: def.sets.first?.reps, durationSeconds: nil, distanceMeters: nil, weightKg: def.sets.first?.weightKg, restSeconds: def.sets.first?.restSeconds),
                     isCustom: false, createdAt: createdAt, updatedAt: createdAt
                 ),
-                order: order,
+                order: adjustedOrder,
                 params: ExerciseParams(sets: def.sets.count, reps: def.sets.first?.reps, durationSeconds: nil, distanceMeters: nil, weightKg: def.sets.first?.weightKg, restSeconds: def.sets.first?.restSeconds),
-                notes: nil
+                notes: notes
             )
         }
+        // Insert pull-ups (EMOM) at position 4 (between bench backoff and accessories)
+        exercises.insert(WorkoutExercise(
+            id: "ex_pullups",
+            exercise: Exercise(
+                id: "ex_pullups", name: "Pull-ups", description: nil,
+                category: .strength, primaryMuscleGroups: [.back],
+                secondaryMuscleGroups: [.biceps, .forearms],
+                defaultParams: ExerciseParams(sets: 10, reps: 3, durationSeconds: nil, distanceMeters: nil, weightKg: nil, restSeconds: 60),
+                isCustom: false, createdAt: createdAt, updatedAt: createdAt
+            ),
+            order: 4,
+            params: ExerciseParams(sets: 10, reps: 3, durationSeconds: nil, distanceMeters: nil, weightKg: nil, restSeconds: 60),
+            notes: "EMOM 10 min"
+        ), at: 4)
 
         return Workout(
-            id: "workout_pull_day",
-            name: "Pull Day",
-            description: "Back, biceps & grip",
+            id: "workout_a",
+            name: "Workout A",
+            description: "Squat & Bench 3RM + backoff, Pull-ups EMOM, accessories",
             exercises: exercises,
-            estimatedDurationMinutes: 50,
+            estimatedDurationMinutes: 75,
             createdAt: createdAt,
             updatedAt: createdAt,
-            blocks: [block]
-        )
-    }
-
-    private static func fridayWod(createdAt: Date) -> Workout {
-        // Block 1: Sequential — Back Squat
-        let squat = SequentialExerciseDef(
-            id: "ex_back_squat",
-            name: "Back Squat",
-            sets: (0..<5).map { i in
-                BlockSetParams(setIndex: i, reps: 5, weightKg: 80, durationSeconds: nil, distanceMeters: nil, restSeconds: 120)
-            }
-        )
-        let sequentialBlock = WorkoutBlock.sequential(name: "Strength", exercises: [squat])
-
-        // Block 2: EMOM — Burpees
-        let emomRounds = (0..<10).map { i in
-            EmomRound(roundIndex: i, sets: [
-                EmomSetDef(exerciseId: "ex_burpees", exerciseName: "Burpees", reps: 5, weightKg: nil, durationSeconds: nil, distanceMeters: nil)
-            ])
-        }
-        let emomBlock = WorkoutBlock.emom(name: "Conditioning", intervalSeconds: 60, rounds: emomRounds)
-
-        // Block 3: AMRAP — KB Swings + Box Jumps
-        let amrapSets = [
-            AmrapSetDef(exerciseId: "ex_kb_swings", exerciseName: "KB Swings", reps: 10, weightKg: 24, durationSeconds: nil, distanceMeters: nil),
-            AmrapSetDef(exerciseId: "ex_box_jumps", exerciseName: "Box Jumps", reps: 10, weightKg: nil, durationSeconds: nil, distanceMeters: nil),
-        ]
-        let amrapBlock = WorkoutBlock.amrap(name: "Finisher", timeCapSeconds: 480, sets: amrapSets)
-
-        // Flat exercises for v1 compatibility (just the sequential ones — EMOM/AMRAP don't map cleanly)
-        let exercises = [
-            WorkoutExercise(
-                id: "ex_back_squat",
-                exercise: Exercise(
-                    id: "ex_back_squat", name: "Back Squat", description: nil,
-                    category: .strength, primaryMuscleGroups: [.quadriceps, .glutes],
-                    secondaryMuscleGroups: [.hamstrings, .core],
-                    defaultParams: ExerciseParams(sets: 5, reps: 5, durationSeconds: nil, distanceMeters: nil, weightKg: 80, restSeconds: 120),
-                    isCustom: false, createdAt: createdAt, updatedAt: createdAt
-                ),
-                order: 0,
-                params: ExerciseParams(sets: 5, reps: 5, durationSeconds: nil, distanceMeters: nil, weightKg: 80, restSeconds: 120),
-                notes: nil
-            )
-        ]
-
-        return Workout(
-            id: "workout_friday_wod",
-            name: "Friday WOD",
-            description: "Squat, EMOM conditioning, AMRAP finisher",
-            exercises: exercises,
-            estimatedDurationMinutes: 40,
-            createdAt: createdAt,
-            updatedAt: createdAt,
-            blocks: [sequentialBlock, emomBlock, amrapBlock]
+            blocks: [strengthBlock, emomBlock, accessoryBlock]
         )
     }
 }
