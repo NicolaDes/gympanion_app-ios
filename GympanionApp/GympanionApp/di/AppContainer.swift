@@ -38,6 +38,7 @@ final class AppContainer {
     let ingestSessionUseCase: IngestSessionUseCase
     let fetchAnalyticsUseCase: FetchAnalyticsUseCase
     let syncWorkoutToWatchUseCase: SyncWorkoutToWatchUseCase
+    let liveWorkoutService: LiveWorkoutService
 
     // MARK: - ViewModels (shared)
     /// Shared ViewModel for workout list + detail. Both screens observe the same instance
@@ -85,5 +86,6 @@ final class AppContainer {
         ingestSessionUseCase = IngestSessionUseCase(repository: sessionRepo)
         fetchAnalyticsUseCase = FetchAnalyticsUseCase(repository: sessionRepo)
         syncWorkoutToWatchUseCase = SyncWorkoutToWatchUseCase(repository: garminRepo)
+        liveWorkoutService = LiveWorkoutService(garminDataSource: garminDataSource)
     }
 }

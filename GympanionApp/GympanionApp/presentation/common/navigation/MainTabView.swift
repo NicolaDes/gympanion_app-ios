@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(AppContainer.self) private var container
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         TabView {
@@ -24,5 +25,15 @@ struct MainTabView: View {
             WatchSyncView(syncUseCase: container.syncWorkoutToWatchUseCase)
                 .tabItem { Label("Watch", systemImage: "applewatch") }
         }
+        .safeAreaInset(edge: .top) {
+            if let status = container.liveWorkoutService.currentStatus {
+                LiveWorkoutBanner(status: status) {
+                    router.navigate(to: .liveSession)
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.easeInOut(duration: 0.3), value: status)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: container.liveWorkoutService.currentStatus != nil)
     }
 }

@@ -14,6 +14,7 @@ enum GarminMessage {
     case workoutReplaceResponse(accepted: Bool)
     case setComplete([String: Any])
     case error(code: String, maxSupported: Int)
+    case liveStatus(LiveWorkoutStatus)
     case unknown([String: Any])
 }
 
@@ -45,6 +46,11 @@ struct GarminPayloadDecoder {
             let code = payload["code"] as? String ?? "unknown"
             let maxSupported = payload["maxSupported"] as? Int ?? 0
             return .error(code: code, maxSupported: maxSupported)
+        case "liveStatus":
+            if let status = decodeLiveStatus(payload: payload) {
+                return .liveStatus(status)
+            }
+            return .unknown(payload)
         default:
             return .unknown(payload)
         }
@@ -241,6 +247,50 @@ struct GarminPayloadDecoder {
             roundsCompleted: roundsCompleted,
             partialReps: partialReps,
             rounds: rounds
+        )
+    }
+
+    // MARK: - Live status decoding
+
+    func decodeLiveStatus(payload: [String: Any]) -> LiveWorkoutStatus? {
+        guard let exerciseName = payload["exerciseName"] as? String,
+              let currentExerciseIndex = payload["currentExerciseIndex"] as? Int,
+              let currentSetIndex = payload["currentSetIndex"] as? Int,
+              let completedSets = payload["completedSets"] as? Int,
+              let completedReps = payload["completedReps"] as? Int,
+              let phaseRaw = payload["phase"] as? Int,
+              let phase = LiveSessionPhase(rawValue: phaseRaw),
+              let workoutDict = payload["workout"] as? [String: Any],
+              let workoutId = workoutDict["id"] as? String,
+              let workoutName = workoutDict["name"] as? String else {
+            return nil
+        }
+
+        let heartRateRaw = payload["heartRate"] as? Int
+        let heartRate = (heartRateRaw != nil && heartRateRaw! > 0) ? heartRateRaw : nil
+
+        var exercises: [LiveExerciseSummary] = []
+        if let rawExercises = workoutDict["exercises"] as? [[String: Any]] {
+            exercises = rawExercises.compactMap { dict -> LiveExerciseSummary? in
+                guard let name = dict["name"] as? String else { return nil }
+                let targetSets = dict["targetSets"] as? Int ?? 0
+                let targetReps = dict["targetReps"] as? Int ?? 0
+                return LiveExerciseSummary(name: name, targetSets: targetSets, targetReps: targetReps)
+            }
+        }
+
+        let plan = LiveWorkoutPlan(id: workoutId, name: workoutName, exercises: exercises)
+
+        return LiveWorkoutStatus(
+            exerciseName: exerciseName,
+            currentExerciseIndex: currentExerciseIndex,
+            currentSetIndex: currentSetIndex,
+            completedSets: completedSets,
+            completedReps: completedReps,
+            heartRate: heartRate,
+            phase: phase,
+            workout: plan,
+            receivedAt: Date()
         )
     }
 

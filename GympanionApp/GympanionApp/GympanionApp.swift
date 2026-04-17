@@ -9,6 +9,10 @@ struct GympanionApp: App {
 
     init() {
         GarminManager.shared.initialize()
+        // Start listening for live workout status from watch
+        Task { @MainActor in
+            AppContainer.shared.liveWorkoutService.startListening()
+        }
     }
 
     var body: some Scene {

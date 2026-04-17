@@ -34,6 +34,7 @@ struct RootView: View {
         case .feed: FeedView()
         case .profile(let id): ProfileView(userId: id)
         case .watchSync: WatchSyncView(syncUseCase: container.syncWorkoutToWatchUseCase)
+        case .liveSession: LiveSessionView()
         }
     }
 }

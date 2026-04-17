@@ -31,4 +31,5 @@ enum AppRoute: Hashable {
 
     // Watch
     case watchSync
+    case liveSession
 }

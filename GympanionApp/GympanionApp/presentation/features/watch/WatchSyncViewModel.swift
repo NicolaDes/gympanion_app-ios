@@ -79,6 +79,8 @@ struct WatchMessage: Identifiable {
             type = .unknown([:])  // sessions handled by receiveSessionStream
         case .error(let code, _):
             type = .unknown(["type": "error", "code": code])
+        case .liveStatus:
+            type = .unknown([:])  // live status handled by LiveWorkoutService
         case .unknown(let raw):
             type = .unknown(raw)
         }
