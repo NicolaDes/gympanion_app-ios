@@ -279,6 +279,8 @@ struct GarminPayloadDecoder {
             }
         }
 
+        let sessionElapsedSec = payload["sessionElapsedSec"] as? Int
+
         let plan = LiveWorkoutPlan(id: workoutId, name: workoutName, exercises: exercises)
 
         return LiveWorkoutStatus(
@@ -290,6 +292,7 @@ struct GarminPayloadDecoder {
             heartRate: heartRate,
             phase: phase,
             workout: plan,
+            sessionElapsedSec: sessionElapsedSec,
             receivedAt: Date()
         )
     }

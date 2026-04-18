@@ -10,14 +10,20 @@ import Foundation
 @MainActor
 final class LiveWorkoutService {
     private(set) var currentStatus: LiveWorkoutStatus?
+    private(set) var connectionLost: Bool = false
 
     private let garminDataSource: GarminDataSource
     private var listenTask: Task<Void, Never>?
-    private var timeoutTask: Task<Void, Never>?
+    private var staleTimeoutTask: Task<Void, Never>?
+    private var connectionTimeoutTask: Task<Void, Never>?
 
     /// Stale status is cleared after 10 minutes with no updates.
     /// Covers the case where the watch app crashes without sending FINISHED.
     private static let staleTimeoutSeconds: TimeInterval = 600
+
+    /// Connection is considered lost after 60 seconds with no messages.
+    /// This preserves the last known state but shows a visual indicator.
+    private static let connectionTimeoutSeconds: TimeInterval = 60
 
     init(garminDataSource: GarminDataSource) {
         self.garminDataSource = garminDataSource
@@ -33,13 +39,7 @@ final class LiveWorkoutService {
             for await message in self.garminDataSource.receiveMessageStream() {
                 guard !Task.isCancelled else { break }
                 guard case .liveStatus(let status) = message else { continue }
-                if status.phase == .finished {
-                    self.currentStatus = nil
-                    self.timeoutTask?.cancel()
-                } else {
-                    self.currentStatus = status
-                    self.resetTimeout()
-                }
+                self.handleStatus(status)
             }
         }
     }
@@ -47,16 +47,59 @@ final class LiveWorkoutService {
     /// Stops listening and clears status. Call on app termination if needed.
     func stopListening() {
         listenTask?.cancel()
-        timeoutTask?.cancel()
+        staleTimeoutTask?.cancel()
+        connectionTimeoutTask?.cancel()
         currentStatus = nil
+        connectionLost = false
     }
 
-    private func resetTimeout() {
-        timeoutTask?.cancel()
-        timeoutTask = Task { [weak self] in
+    private func handleStatus(_ status: LiveWorkoutStatus) {
+        // Any message proves the watch is alive
+        connectionLost = false
+        resetConnectionTimeout()
+
+        switch status.phase {
+        case .finished:
+            currentStatus = nil
+            cancelAllTimers()
+
+        case .exited:
+            currentStatus = status
+            cancelAllTimers()
+            // Show "ENDED" for 2 seconds, then clear
+            staleTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                self?.currentStatus = nil
+            }
+
+        default:
+            currentStatus = status
+            resetStaleTimeout()
+        }
+    }
+
+    private func resetConnectionTimeout() {
+        connectionTimeoutTask?.cancel()
+        connectionTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.connectionTimeoutSeconds))
+            guard !Task.isCancelled else { return }
+            self?.connectionLost = true
+        }
+    }
+
+    private func resetStaleTimeout() {
+        staleTimeoutTask?.cancel()
+        staleTimeoutTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(Self.staleTimeoutSeconds))
             guard !Task.isCancelled else { return }
             self?.currentStatus = nil
+            self?.connectionLost = false
         }
+    }
+
+    private func cancelAllTimers() {
+        staleTimeoutTask?.cancel()
+        connectionTimeoutTask?.cancel()
     }
 }

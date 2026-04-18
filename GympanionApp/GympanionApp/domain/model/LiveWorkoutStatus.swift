@@ -7,6 +7,8 @@ enum LiveSessionPhase: Int {
     case rest = 2
     case finished = 3
     case blockComplete = 4
+    case paused = 5
+    case exited = 6
 }
 
 struct LiveExerciseSummary: Equatable {
@@ -30,5 +32,6 @@ struct LiveWorkoutStatus: Equatable {
     let heartRate: Int?
     let phase: LiveSessionPhase
     let workout: LiveWorkoutPlan
+    let sessionElapsedSec: Int?
     let receivedAt: Date
 }

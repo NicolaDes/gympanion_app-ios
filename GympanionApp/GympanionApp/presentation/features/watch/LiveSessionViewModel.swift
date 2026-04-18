@@ -24,6 +24,14 @@ final class LiveSessionViewModel {
         status != nil
     }
 
+    var isConnectionLost: Bool {
+        liveWorkoutService.connectionLost
+    }
+
+    var isPaused: Bool {
+        status?.phase == .paused
+    }
+
     var workoutName: String {
         status?.workout.name ?? "\u{2014}"
     }
@@ -40,6 +48,8 @@ final class LiveSessionViewModel {
         case .idle: return "READY"
         case .blockComplete: return "BLOCK DONE"
         case .finished: return "DONE"
+        case .paused: return "PAUSED"
+        case .exited: return "ENDED"
         }
     }
 
@@ -61,6 +71,13 @@ final class LiveSessionViewModel {
     var currentSetText: String {
         guard let s = status else { return "\u{2014}" }
         return "Set \(s.currentSetIndex + 1)"
+    }
+
+    var sessionElapsedText: String? {
+        guard let elapsed = status?.sessionElapsedSec else { return nil }
+        let minutes = elapsed / 60
+        let seconds = elapsed % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     var exercises: [LiveExerciseSummary] {

@@ -23,7 +23,6 @@ struct LiveSessionView: View {
         }
         .onChange(of: viewModel?.isActive) { _, isActive in
             if isActive == false {
-                // Session ended — pop back automatically
                 router.pop()
             }
         }
@@ -33,12 +32,36 @@ struct LiveSessionView: View {
     private func liveContent(vm: LiveSessionViewModel) -> some View {
         ScrollView {
             VStack(spacing: 20) {
+                if vm.isConnectionLost {
+                    connectionLostBanner
+                }
                 headerSection(vm: vm)
                 currentExerciseCard(vm: vm)
                 workoutProgressSection(vm: vm)
             }
             .padding()
+            .opacity(vm.isConnectionLost ? 0.6 : 1.0)
         }
+    }
+
+    // MARK: - Connection Lost Banner
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 8, height: 8)
+                .modifier(PulsingModifier())
+
+            Text("Connection lost — waiting for watch...")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Header
@@ -52,6 +75,12 @@ struct LiveSessionView: View {
 
             HStack(spacing: 16) {
                 phaseBadge(vm: vm)
+
+                if let elapsed = vm.sessionElapsedText {
+                    Label(elapsed, systemImage: "clock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
                 if let hr = vm.heartRateText {
                     Label(hr, systemImage: "heart.fill")
@@ -190,6 +219,8 @@ struct LiveSessionView: View {
         case .idle: return .gray
         case .blockComplete: return .blue
         case .finished: return .green
+        case .paused: return .yellow
+        case .exited: return .gray
         }
     }
 
@@ -199,5 +230,18 @@ struct LiveSessionView: View {
         } description: {
             Text("Start a workout on your Garmin watch to see live progress here.")
         }
+    }
+}
+
+// MARK: - Pulsing Animation
+
+private struct PulsingModifier: ViewModifier {
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isPulsing ? 0.3 : 1.0)
+            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+            .onAppear { isPulsing = true }
     }
 }
