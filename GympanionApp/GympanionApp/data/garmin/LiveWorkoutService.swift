@@ -1,6 +1,13 @@
 // GympanionApp/data/garmin/LiveWorkoutService.swift
 import Foundation
 
+/// Read-only projection of live workout state for presentation layer consumers.
+/// Narrower than the full service so ViewModels can be unit-tested with a fake.
+@MainActor
+protocol LiveWorkoutStatusPublishing: AnyObject {
+    var currentStatus: LiveWorkoutStatus? { get }
+}
+
 /// Listens to the Garmin message stream for liveStatus messages and publishes
 /// the current workout status. Views observe `currentStatus` to show/hide
 /// the live workout banner and detail screen.
@@ -8,7 +15,7 @@ import Foundation
 /// Lives in the Data layer because it depends on GarminDataSource.
 @Observable
 @MainActor
-final class LiveWorkoutService {
+final class LiveWorkoutService: LiveWorkoutStatusPublishing {
     private(set) var currentStatus: LiveWorkoutStatus?
     private(set) var connectionLost: Bool = false
 

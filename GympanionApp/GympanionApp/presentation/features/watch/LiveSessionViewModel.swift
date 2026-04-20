@@ -1,93 +1,70 @@
 // GympanionApp/presentation/features/watch/LiveSessionViewModel.swift
 import Foundation
 
-enum ExerciseProgressState {
-    case completed
-    case current
-    case upcoming
+/// Presentation-layer colour classification for the session-phase pill.
+/// The view maps each case to a concrete `SwiftUI.Color`.
+enum PhaseColor {
+    case active
+    case rest
+    case paused
+    case idle
+    case done
 }
 
 @Observable
 @MainActor
 final class LiveSessionViewModel {
-    private let liveWorkoutService: LiveWorkoutService
+    private let publisher: LiveWorkoutStatusPublishing
 
-    init(liveWorkoutService: LiveWorkoutService) {
-        self.liveWorkoutService = liveWorkoutService
-    }
-
-    var status: LiveWorkoutStatus? {
-        liveWorkoutService.currentStatus
+    init(publisher: LiveWorkoutStatusPublishing) {
+        self.publisher = publisher
     }
 
     var isActive: Bool {
-        status != nil
+        publisher.currentStatus != nil
     }
 
-    var isConnectionLost: Bool {
-        liveWorkoutService.connectionLost
-    }
-
-    var isPaused: Bool {
-        status?.phase == .paused
-    }
-
-    var workoutName: String {
-        status?.workout.name ?? "\u{2014}"
-    }
-
-    var exerciseName: String {
-        status?.exerciseName ?? "\u{2014}"
-    }
-
-    var phaseText: String {
-        guard let phase = status?.phase else { return "" }
+    var phaseLabel: String {
+        guard let phase = publisher.currentStatus?.phase else { return "" }
         switch phase {
         case .work: return "WORK"
         case .rest: return "REST"
         case .idle: return "READY"
         case .blockComplete: return "BLOCK DONE"
-        case .finished: return "DONE"
         case .paused: return "PAUSED"
+        case .finished: return "DONE"
         case .exited: return "ENDED"
         }
     }
 
-    var completedSetsText: String {
-        guard let s = status else { return "0" }
-        return "\(s.completedSets)"
+    var phaseColor: PhaseColor {
+        guard let phase = publisher.currentStatus?.phase else { return .idle }
+        switch phase {
+        case .work: return .active
+        case .rest, .blockComplete: return .rest
+        case .paused: return .paused
+        case .idle: return .idle
+        case .finished, .exited: return .done
+        }
     }
 
-    var completedRepsText: String {
-        guard let s = status else { return "0" }
-        return "\(s.completedReps)"
+    var heartRate: Int? {
+        publisher.currentStatus?.heartRate
     }
 
-    var heartRateText: String? {
-        guard let hr = status?.heartRate else { return nil }
-        return "\(hr)"
+    var elapsedSeconds: Int? {
+        publisher.currentStatus?.sessionElapsedSec
     }
 
-    var currentSetText: String {
-        guard let s = status else { return "\u{2014}" }
-        return "Set \(s.currentSetIndex + 1)"
-    }
-
-    var sessionElapsedText: String? {
-        guard let elapsed = status?.sessionElapsedSec else { return nil }
-        let minutes = elapsed / 60
-        let seconds = elapsed % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-
-    var exercises: [LiveExerciseSummary] {
-        status?.workout.exercises ?? []
-    }
-
-    func progressState(for index: Int) -> ExerciseProgressState {
-        guard let s = status else { return .upcoming }
-        if index < s.currentExerciseIndex { return .completed }
-        if index == s.currentExerciseIndex { return .current }
-        return .upcoming
+    var elapsedDisplay: String {
+        guard let total = elapsedSeconds, total >= 0 else { return "" }
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
     }
 }
