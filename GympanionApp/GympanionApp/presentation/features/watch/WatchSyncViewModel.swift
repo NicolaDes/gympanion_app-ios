@@ -122,11 +122,14 @@ final class WatchSyncViewModel {
 
     private let syncUseCase: SyncWorkoutToWatchUseCase
     private let dataSource: GarminDataSource
+    private let dedupFilter: GarminMessageDedupFilter?
 
     init(syncUseCase: SyncWorkoutToWatchUseCase,
-         dataSource: GarminDataSource = GarminDataSource()) {
-        self.syncUseCase = syncUseCase
-        self.dataSource  = dataSource
+         dataSource: GarminDataSource = GarminDataSource(),
+         dedupFilter: GarminMessageDedupFilter? = nil) {
+        self.syncUseCase  = syncUseCase
+        self.dataSource   = dataSource
+        self.dedupFilter  = dedupFilter
     }
 
     func loadDevices() async {
@@ -143,6 +146,14 @@ final class WatchSyncViewModel {
     func startListening() async {
         isListening = true
         for await message in dataSource.receiveMessageStream() {
+            // Only `.setComplete` is subject to dedup here. Everything else
+            // bypasses the filter so the seen-set is not polluted by payloads
+            // that this VM doesn't treat as dedup-critical.
+            if case .setComplete(let raw) = message,
+               let filter = dedupFilter,
+               await filter.shouldAccept(raw) == false {
+                continue  // duplicate replay — drop silently
+            }
             messages.insert(WatchMessage(garminMessage: message), at: 0)
         }
         isListening = false

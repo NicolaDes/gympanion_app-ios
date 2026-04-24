@@ -33,7 +33,7 @@ struct RootView: View {
         case .prList: PRListView()
         case .feed: FeedView()
         case .profile(let id): ProfileView(userId: id)
-        case .watchSync: WatchSyncView(syncUseCase: container.syncWorkoutToWatchUseCase)
+        case .watchSync: WatchSyncView(viewModel: container.makeWatchSyncViewModel())
         case .liveSession: LiveSessionView()
         }
     }

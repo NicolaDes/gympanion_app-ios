@@ -10,8 +10,8 @@ struct WatchSyncView: View {
     // Must be a @State stored property (not a local var) for @Observable tracking to persist
     @State private var debugLog = GarminDebugLog.shared
 
-    init(syncUseCase: SyncWorkoutToWatchUseCase) {
-        _viewModel = State(wrappedValue: WatchSyncViewModel(syncUseCase: syncUseCase))
+    init(viewModel: WatchSyncViewModel) {
+        _viewModel = State(wrappedValue: viewModel)
     }
 
     var body: some View {

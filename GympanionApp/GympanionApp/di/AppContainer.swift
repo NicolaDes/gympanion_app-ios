@@ -19,6 +19,7 @@ final class AppContainer {
     private let sessionDao: SessionDao
 
     // MARK: - Garmin
+    private let garminMessageDedupFilter: GarminMessageDedupFilter
     private let garminDataSource: GarminDataSource
 
     // MARK: - Providers
@@ -39,6 +40,15 @@ final class AppContainer {
     let fetchAnalyticsUseCase: FetchAnalyticsUseCase
     let syncWorkoutToWatchUseCase: SyncWorkoutToWatchUseCase
     let liveWorkoutService: LiveWorkoutService
+
+    // MARK: - Factories
+    func makeWatchSyncViewModel() -> WatchSyncViewModel {
+        WatchSyncViewModel(
+            syncUseCase: syncWorkoutToWatchUseCase,
+            dataSource: garminDataSource,
+            dedupFilter: garminMessageDedupFilter
+        )
+    }
 
     // MARK: - ViewModels (shared)
     /// Shared ViewModel for workout list + detail. Both screens observe the same instance
@@ -67,6 +77,7 @@ final class AppContainer {
         sessionDao = SessionDao(modelContext: database.mainContext)
 
         // Garmin
+        garminMessageDedupFilter = GarminMessageDedupFilter()          // default cap 1000
         garminDataSource = GarminDataSource()
 
         // Providers
@@ -77,7 +88,10 @@ final class AppContainer {
         exerciseRepo = ExerciseRepositoryImpl(apiService: apiService, dao: exerciseDao)
         workoutRepo = WorkoutRepositoryImpl(apiService: apiService, dao: workoutDao)
         sessionRepo = SessionRepositoryImpl(apiService: apiService, dao: sessionDao)
-        garminRepo = GarminRepositoryImpl(dataSource: garminDataSource)
+        garminRepo = GarminRepositoryImpl(
+            dataSource: garminDataSource,
+            dedupFilter: garminMessageDedupFilter
+        )
 
         // Use Cases
         authUseCase = AuthUseCase(repository: authRepo)

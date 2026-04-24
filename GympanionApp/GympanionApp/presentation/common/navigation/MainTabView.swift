@@ -22,7 +22,7 @@ struct MainTabView: View {
             ProfileView(userId: nil)
                 .tabItem { Label("Profile", systemImage: "person.circle") }
 
-            WatchSyncView(syncUseCase: container.syncWorkoutToWatchUseCase)
+            WatchSyncView(viewModel: container.makeWatchSyncViewModel())
                 .tabItem { Label("Watch", systemImage: "applewatch") }
         }
         .safeAreaInset(edge: .top) {

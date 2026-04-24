@@ -4,10 +4,14 @@ import Foundation
 final class GarminRepositoryImpl: GarminRepository {
     private let dataSource: GarminDataSource
     private let manager: GarminManager
+    private let dedupFilter: GarminMessageDedupFilter?
 
-    init(dataSource: GarminDataSource = GarminDataSource(), manager: GarminManager = .shared) {
+    init(dataSource: GarminDataSource = GarminDataSource(),
+         manager: GarminManager = .shared,
+         dedupFilter: GarminMessageDedupFilter? = nil) {
         self.dataSource = dataSource
         self.manager = manager
+        self.dedupFilter = dedupFilter
     }
 
     func connectedDevices() -> AsyncStream<[String]> {
@@ -24,11 +28,21 @@ final class GarminRepositoryImpl: GarminRepository {
     }
 
     func receiveSessionFromDevice() -> AsyncStream<Session> {
-        dataSource.receiveSessionStream()
+        AsyncStream { continuation in
+            Task {
+                for await session in self.dataSource.receiveSessionStream() {
+                    if let filter = self.dedupFilter,
+                       await filter.shouldAcceptSession(session) == false {
+                        continue  // duplicate session_result replay — drop
+                    }
+                    continuation.yield(session)
+                }
+                continuation.finish()
+            }
+        }
     }
 
     func isConnectIqAvailable() -> Bool {
-        // Safe to call synchronously from main thread; returns false off main thread.
         if Thread.isMainThread {
             return manager.isConnectIqAvailable()
         }
